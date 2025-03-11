@@ -1,4 +1,4 @@
-# Call Analysis Dashboard
+# Call Center AI AInsights
 
 A Flask-based dashboard for analyzing customer service call recordings, evaluating agent performance, and tracking team compliance metrics.
 
