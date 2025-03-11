@@ -1,0 +1,393 @@
+{% extends "layout.html" %}
+
+{% block title %}Team Dashboard - {{ team_id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>Team Dashboard: {{ team_id|title }}</h1>
+        <p class="text-muted">Performance overview and agent comparisons</p>
+    </div>
+    <div>
+        <a href="/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Team metrics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-light metric-card">
+            <div class="metric-value">{{ metrics.call_count|default('0') }}</div>
+            <div class="metric-label">Total Calls</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light metric-card">
+            <div class="metric-value">{{ metrics.recent_calls|default('0') }}</div>
+            <div class="metric-label">Recent Calls (7d)</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light metric-card">
+            <div class="metric-value">{{ metrics.avg_agent_score|default('0.0') }}</div>
+            <div class="metric-label">Avg. Performance</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light metric-card">
+            <div class="metric-value">{{ metrics.avg_audit_score|default('0.0') }}</div>
+            <div class="metric-label">Avg. Compliance</div>
+        </div>
+    </div>
+</div>
+
+<!-- Agent comparison -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Agent Performance Comparison</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="agentComparisonChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Agent leaderboard -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Performance Leaderboard</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Agent</th>
+                                <th>Score</th>
+                                <th>Calls</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {# Process results and calculate performance scores #}
+                            {% set performance_data = [] %}
+                            
+                            {# Group by agent_id and calculate scores #}
+                            {% set agent_ids = [] %}
+                            {% for result in results %}
+                                {% if result.agent_id not in agent_ids %}
+                                    {% set _ = agent_ids.append(result.agent_id) %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {# For each agent, collect all scores and calculate average #}
+                            {% for agent_id in agent_ids %}
+                                {% set scores = [] %}
+                                {% set count = 0 %}
+                                
+                                {% for result in results %}
+                                    {% if result.agent_id == agent_id and result.agent_evaluation and result.agent_evaluation.score %}
+                                        {% set _ = scores.append(result.agent_evaluation.score|float) %}
+                                        {% set count = count + 1 %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {# Calculate average score #}
+                                {% set avg_score = 0 %}
+                                {% set total = 0 %}
+                                
+                                {% for score in scores %}
+                                    {% set total = total + score %}
+                                {% endfor %}
+                                
+                                {% if scores|length > 0 %}
+                                    {% set avg_score = (total / scores|length)|round(1) %}
+                                {% endif %}
+                                
+                                {# Add to data list #}
+                                {% set _ = performance_data.append({
+                                    'agent_id': agent_id,
+                                    'avg_score': avg_score,
+                                    'count': count
+                                }) %}
+                            {% endfor %}
+                            
+                            {# Sort performance data by avg_score (needs to be done in a Python function) #}
+                            {% set performance_data = performance_data|sort(attribute='avg_score', reverse=true) %}
+                            
+                            {# Display the sorted data #}
+                            {% for item in performance_data %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td><a href="/agent/{{ item.agent_id }}">{{ item.agent_id }}</a></td>
+                                    <td>
+                                        <span class="score-pill 
+                                            {% if item.avg_score >= 8 %}score-high
+                                            {% elif item.avg_score >= 6 %}score-medium
+                                            {% else %}score-low{% endif %}">
+                                            {{ item.avg_score }}
+                                        </span>
+                                    </td>
+                                    <td>{{ item.count }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Compliance Leaderboard</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Agent</th>
+                                <th>Score</th>
+                                <th>Calls</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {# Process results and calculate compliance scores #}
+                            {% set compliance_data = [] %}
+                            
+                            {# Group by agent_id and calculate scores #}
+                            {% set agent_ids = [] %}
+                            {% for result in results %}
+                                {% if result.agent_id not in agent_ids %}
+                                    {% set _ = agent_ids.append(result.agent_id) %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {# For each agent, collect all scores and calculate average #}
+                            {% for agent_id in agent_ids %}
+                                {% set scores = [] %}
+                                {% set count = 0 %}
+                                
+                                {% for result in results %}
+                                    {% if result.agent_id == agent_id and result.audit_and_compliance and result.audit_and_compliance.score %}
+                                        {% set _ = scores.append(result.audit_and_compliance.score|float) %}
+                                        {% set count = count + 1 %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {# Calculate average score #}
+                                {% set avg_score = 0 %}
+                                {% set total = 0 %}
+                                
+                                {% for score in scores %}
+                                    {% set total = total + score %}
+                                {% endfor %}
+                                
+                                {% if scores|length > 0 %}
+                                    {% set avg_score = (total / scores|length)|round(1) %}
+                                {% endif %}
+                                
+                                {# Add to data list #}
+                                {% set _ = compliance_data.append({
+                                    'agent_id': agent_id,
+                                    'avg_score': avg_score,
+                                    'count': count
+                                }) %}
+                            {% endfor %}
+                            
+                            {# Sort compliance data by avg_score #}
+                            {% set compliance_data = compliance_data|sort(attribute='avg_score', reverse=true) %}
+                            
+                            {# Display the sorted data #}
+                            {% for item in compliance_data %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td><a href="/agent/{{ item.agent_id }}">{{ item.agent_id }}</a></td>
+                                    <td>
+                                        <span class="score-pill 
+                                            {% if item.avg_score >= 8 %}score-high
+                                            {% elif item.avg_score >= 6 %}score-medium
+                                            {% else %}score-low{% endif %}">
+                                            {{ item.avg_score }}
+                                        </span>
+                                    </td>
+                                    <td>{{ item.count }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent calls -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title">Recent Team Calls</h5>
+        <a href="/upload" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus"></i> New Analysis
+        </a>
+    </div>
+    <div class="card-body">
+        {% if results %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Agent</th>
+                            <th>Performance</th>
+                            <th>Compliance</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results|sort(attribute='timestamp', reverse=true) %}
+                        <tr class="call-item">
+                            <td>{{ result.timestamp.split('T')[0] }}</td>
+                            <td>
+                                <a href="/agent/{{ result.agent_id }}">{{ result.agent_id }}</a>
+                            </td>
+                            <td>
+                                {% set agent_score = result.agent_evaluation.score|float if result.agent_evaluation and result.agent_evaluation.score else 0 %}
+                                <span class="score-pill 
+                                    {% if agent_score >= 8 %}score-high
+                                    {% elif agent_score >= 6 %}score-medium
+                                    {% else %}score-low{% endif %}">
+                                    {{ agent_score }}
+                                </span>
+                            </td>
+                            <td>
+                                {% set audit_score = result.audit_and_compliance.score|float if result.audit_and_compliance and result.audit_and_compliance.score else 0 %}
+                                <span class="score-pill 
+                                    {% if audit_score >= 8 %}score-high
+                                    {% elif audit_score >= 6 %}score-medium
+                                    {% else %}score-low{% endif %}">
+                                    {{ audit_score }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="/analysis/{{ result.timestamp }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No call records found for this team.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Agent comparison chart
+    const ctx = document.getElementById('agentComparisonChart').getContext('2d');
+    
+    // Calculate agent averages
+    const agentData = {};
+    
+    {% for result in results %}
+        if (!agentData['{{ result.agent_id }}']) {
+            agentData['{{ result.agent_id }}'] = {
+                performanceScores: [],
+                complianceScores: []
+            };
+        }
+        
+        {% if result.agent_evaluation and result.agent_evaluation.score %}
+            agentData['{{ result.agent_id }}'].performanceScores.push(
+                parseFloat('{{ result.agent_evaluation.score }}') || 0
+            );
+        {% endif %}
+        
+        {% if result.audit_and_compliance and result.audit_and_compliance.score %}
+            agentData['{{ result.agent_id }}'].complianceScores.push(
+                parseFloat('{{ result.audit_and_compliance.score }}') || 0
+            );
+        {% endif %}
+    {% endfor %}
+    
+    // Calculate averages
+    const agentLabels = [];
+    const avgPerformance = [];
+    const avgCompliance = [];
+    
+    for (const [agentId, data] of Object.entries(agentData)) {
+        agentLabels.push(agentId);
+        
+        const performanceAvg = data.performanceScores.length > 0 
+            ? data.performanceScores.reduce((sum, score) => sum + score, 0) / data.performanceScores.length
+            : 0;
+        
+        const complianceAvg = data.complianceScores.length > 0
+            ? data.complianceScores.reduce((sum, score) => sum + score, 0) / data.complianceScores.length
+            : 0;
+        
+        avgPerformance.push(performanceAvg.toFixed(1));
+        avgCompliance.push(complianceAvg.toFixed(1));
+    }
+    
+    const agentComparisonChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: agentLabels,
+            datasets: [
+                {
+                    label: 'Avg. Performance',
+                    data: avgPerformance,
+                    backgroundColor: 'rgba(67, 97, 238, 0.7)',
+                    borderColor: 'rgba(67, 97, 238, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Avg. Compliance',
+                    data: avgCompliance,
+                    backgroundColor: 'rgba(76, 201, 240, 0.7)',
+                    borderColor: 'rgba(76, 201, 240, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 10
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.raw;
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,594 @@
+{% extends "layout.html" %}
+
+{% block title %}Agent Dashboard - {{ agent_id }}{% endblock %}
+
+{% block head_extras %}
+<style>
+    .subcategory-card {
+        border-radius: 8px;
+        padding: 15px;
+        height: 100%;
+        transition: all 0.3s;
+    }
+    
+    .subcategory-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .subcategory-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin: 5px 0;
+    }
+    
+    .subcategory-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .performance-section {
+        margin-bottom: 2rem;
+    }
+    
+    .subcategory-icon {
+        font-size: 1.5rem;
+        margin-bottom: 10px;
+    }
+    
+    .score-high {
+        color: #198754;
+    }
+    
+    .score-medium {
+        color: #ffc107;
+    }
+    
+    .score-low {
+        color: #dc3545;
+    }
+    
+    .skills-radar-container {
+        height: 400px;
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>Agent Dashboard: {{ agent_id }}</h1>
+        <p class="text-muted">Performance overview and call history for {{ agent_id }}</p>
+    </div>
+    <div>
+        <a href="/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Performance metrics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-light metric-card">
+            <div class="metric-value">{{ metrics.call_count|default('0') }}</div>
+            <div class="metric-label">Total Calls</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light metric-card">
+            <div class="metric-value">{{ metrics.recent_calls|default('0') }}</div>
+            <div class="metric-label">Recent Calls (7d)</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light metric-card">
+            <div class="metric-value">{{ metrics.avg_agent_score|default('0.0') }}</div>
+            <div class="metric-label">Avg. Performance</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light metric-card">
+            <div class="metric-value">{{ metrics.avg_audit_score|default('0.0') }}</div>
+            <div class="metric-label">Avg. Compliance</div>
+        </div>
+    </div>
+</div>
+
+<!-- Skills radar chart -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Skills Assessment</h5>
+            </div>
+            <div class="card-body">
+                <div class="skills-radar-container">
+                    <canvas id="skillsRadarChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Strengths & Weaknesses</h5>
+            </div>
+            <div class="card-body">
+                {% if metrics.subcategories %}
+                    <!-- Find highest and lowest scores -->
+                    {% set scores = {
+                        'Communication': metrics.subcategories.communication,
+                        'Problem Solving': metrics.subcategories.problem_solving,
+                        'Empathy': metrics.subcategories.empathy,
+                        'Protocol Adherence': metrics.subcategories.adherence,
+                        'Communication Protocols': metrics.subcategories.communication_protocols,
+                        'Regulations Compliance': metrics.subcategories.regulations_compliance,
+                        'Sensitive Information': metrics.subcategories.sensitive_info,
+                        'Resolution': metrics.subcategories.resolution
+                    } %}
+                    
+                    {% set strengths = {} %}
+                    {% set weaknesses = {} %}
+                    
+                    {% for category, score in scores.items() %}
+                        {% if score|float >= 8 %}
+                            {% set _ = strengths.update({category: score}) %}
+                        {% elif score|float <= 6 %}
+                            {% set _ = weaknesses.update({category: score}) %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <h6 class="text-success">Top Strengths</h6>
+                    {% if strengths %}
+                        <ul class="list-group list-group-flush mb-3">
+                            {% for category, score in strengths|dictsort(by='value', reverse=true) %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ category }}
+                                    <span class="badge bg-success rounded-pill">{{ score }}</span>
+                                </li>
+                                {% if loop.index >= 3 %}{% break %}{% endif %}
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted small">No outstanding strengths identified.</p>
+                    {% endif %}
+                    
+                    <h6 class="text-danger">Areas for Improvement</h6>
+                    {% if weaknesses %}
+                        <ul class="list-group list-group-flush">
+                            {% for category, score in weaknesses|dictsort(by='value') %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ category }}
+                                    <span class="badge bg-danger rounded-pill">{{ score }}</span>
+                                </li>
+                                {% if loop.index >= 3 %}{% break %}{% endif %}
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted small">No significant weaknesses identified.</p>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted">No subcategory data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance subcategories -->
+<div class="performance-section">
+    <h5 class="mb-3">Agent Performance Breakdown</h5>
+    <div class="row mb-4">
+        {% if metrics.subcategories %}
+            <!-- Communication -->
+            {% set comm_score = metrics.subcategories.communication|float %}
+            <div class="col-md-3 mb-3">
+                <div class="card subcategory-card">
+                    <div class="subcategory-icon 
+                        {% if comm_score >= 8 %}score-high
+                        {% elif comm_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        <i class="bi bi-chat-dots"></i>
+                    </div>
+                    <div class="subcategory-value 
+                        {% if comm_score >= 8 %}score-high
+                        {% elif comm_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        {{ comm_score }}
+                    </div>
+                    <div class="subcategory-label">Communication</div>
+                </div>
+            </div>
+            
+            <!-- Problem Solving -->
+            {% set prob_score = metrics.subcategories.problem_solving|float %}
+            <div class="col-md-3 mb-3">
+                <div class="card subcategory-card">
+                    <div class="subcategory-icon 
+                        {% if prob_score >= 8 %}score-high
+                        {% elif prob_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        <i class="bi bi-puzzle"></i>
+                    </div>
+                    <div class="subcategory-value 
+                        {% if prob_score >= 8 %}score-high
+                        {% elif prob_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        {{ prob_score }}
+                    </div>
+                    <div class="subcategory-label">Problem Solving</div>
+                </div>
+            </div>
+            
+            <!-- Empathy -->
+            {% set emp_score = metrics.subcategories.empathy|float %}
+            <div class="col-md-3 mb-3">
+                <div class="card subcategory-card">
+                    <div class="subcategory-icon 
+                        {% if emp_score >= 8 %}score-high
+                        {% elif emp_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        <i class="bi bi-heart"></i>
+                    </div>
+                    <div class="subcategory-value 
+                        {% if emp_score >= 8 %}score-high
+                        {% elif emp_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        {{ emp_score }}
+                    </div>
+                    <div class="subcategory-label">Empathy</div>
+                </div>
+            </div>
+            
+            <!-- Protocol Adherence -->
+            {% set adh_score = metrics.subcategories.adherence|float %}
+            <div class="col-md-3 mb-3">
+                <div class="card subcategory-card">
+                    <div class="subcategory-icon 
+                        {% if adh_score >= 8 %}score-high
+                        {% elif adh_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        <i class="bi bi-check2-circle"></i>
+                    </div>
+                    <div class="subcategory-value 
+                        {% if adh_score >= 8 %}score-high
+                        {% elif adh_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        {{ adh_score }}
+                    </div>
+                    <div class="subcategory-label">Protocol Adherence</div>
+                </div>
+            </div>
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    No performance subcategories data available.
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Compliance subcategories -->
+<div class="performance-section">
+    <h5 class="mb-3">Compliance Breakdown</h5>
+    <div class="row mb-4">
+        {% if metrics.subcategories %}
+            <!-- Communication Protocols -->
+            {% set proto_score = metrics.subcategories.communication_protocols|float %}
+            <div class="col-md-3 mb-3">
+                <div class="card subcategory-card">
+                    <div class="subcategory-icon 
+                        {% if proto_score >= 8 %}score-high
+                        {% elif proto_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        <i class="bi bi-chat-square-text"></i>
+                    </div>
+                    <div class="subcategory-value 
+                        {% if proto_score >= 8 %}score-high
+                        {% elif proto_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        {{ proto_score }}
+                    </div>
+                    <div class="subcategory-label">Communication Protocols</div>
+                </div>
+            </div>
+            
+            <!-- Regulations Compliance -->
+            {% set reg_score = metrics.subcategories.regulations_compliance|float %}
+            <div class="col-md-3 mb-3">
+                <div class="card subcategory-card">
+                    <div class="subcategory-icon 
+                        {% if reg_score >= 8 %}score-high
+                        {% elif reg_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        <i class="bi bi-journal-check"></i>
+                    </div>
+                    <div class="subcategory-value 
+                        {% if reg_score >= 8 %}score-high
+                        {% elif reg_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        {{ reg_score }}
+                    </div>
+                    <div class="subcategory-label">Regulations Compliance</div>
+                </div>
+            </div>
+            
+            <!-- Sensitive Information -->
+            {% set sens_score = metrics.subcategories.sensitive_info|float %}
+            <div class="col-md-3 mb-3">
+                <div class="card subcategory-card">
+                    <div class="subcategory-icon 
+                        {% if sens_score >= 8 %}score-high
+                        {% elif sens_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        <i class="bi bi-shield-lock"></i>
+                    </div>
+                    <div class="subcategory-value 
+                        {% if sens_score >= 8 %}score-high
+                        {% elif sens_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        {{ sens_score }}
+                    </div>
+                    <div class="subcategory-label">Sensitive Information</div>
+                </div>
+            </div>
+            
+            <!-- Resolution Effectiveness -->
+            {% set res_score = metrics.subcategories.resolution|float %}
+            <div class="col-md-3 mb-3">
+                <div class="card subcategory-card">
+                    <div class="subcategory-icon 
+                        {% if res_score >= 8 %}score-high
+                        {% elif res_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        <i class="bi bi-check2-all"></i>
+                    </div>
+                    <div class="subcategory-value 
+                        {% if res_score >= 8 %}score-high
+                        {% elif res_score >= 6 %}score-medium
+                        {% else %}score-low{% endif %}">
+                        {{ res_score }}
+                    </div>
+                    <div class="subcategory-label">Resolution Effectiveness</div>
+                </div>
+            </div>
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    No compliance subcategories data available.
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Performance trends -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Performance Trends</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Call history table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title">Call History</h5>
+    </div>
+    <div class="card-body">
+        {% if results %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Team</th>
+                            <th>Performance Score</th>
+                            <th>Compliance Score</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results %}
+                        <tr class="call-item">
+                            <td>{{ result.timestamp.split('T')[0] }}</td>
+                            <td>
+                                <a href="/team/{{ result.team_id }}">{{ result.team_id }}</a>
+                            </td>
+                            <td>
+                                {% set agent_score = result.agent_evaluation.score|float %}
+                                <span class="score-pill 
+                                    {% if agent_score >= 8 %}score-high
+                                    {% elif agent_score >= 6 %}score-medium
+                                    {% else %}score-low{% endif %}">
+                                    {{ agent_score }}
+                                </span>
+                            </td>
+                            <td>
+                                {% set audit_score = result.audit_and_compliance.score|float %}
+                                <span class="score-pill 
+                                    {% if audit_score >= 8 %}score-high
+                                    {% elif audit_score >= 6 %}score-medium
+                                    {% else %}score-low{% endif %}">
+                                    {{ audit_score }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="/analysis/{{ result.timestamp }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No call records found for this agent.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Performance trend chart
+    const ctx = document.getElementById('performanceTrendChart').getContext('2d');
+    
+    // Sort results by timestamp (oldest first)
+    const sortedResults = {{ results|sort(attribute='timestamp')|tojson }};
+    
+    // Extract dates and scores
+    const dates = sortedResults.map(r => r.timestamp.split('T')[0]);
+    const agentScores = sortedResults.map(r => parseFloat(r.agent_evaluation.score) || 0);
+    const auditScores = sortedResults.map(r => parseFloat(r.audit_and_compliance.score) || 0);
+    
+    const performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [
+                {
+                    label: 'Performance Score',
+                    data: agentScores,
+                    borderColor: 'rgba(67, 97, 238, 1)',
+                    backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                },
+                {
+                    label: 'Compliance Score',
+                    data: auditScores,
+                    borderColor: 'rgba(76, 201, 240, 1)',
+                    backgroundColor: 'rgba(76, 201, 240, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 10
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            }
+        }
+    });
+    
+    // Skills radar chart
+    const radarCtx = document.getElementById('skillsRadarChart').getContext('2d');
+    
+    // Set default values for subcategories
+    let subcategories = {
+        communication: 0,
+        problem_solving: 0,
+        empathy: 0,
+        adherence: 0,
+        communication_protocols: 0,
+        regulations_compliance: 0,
+        sensitive_info: 0,
+        resolution: 0
+    };
+    
+    // Use actual values if they exist
+    {% if metrics.subcategories %}
+        subcategories = {
+            communication: {{ metrics.subcategories.communication|float }},
+            problem_solving: {{ metrics.subcategories.problem_solving|float }},
+            empathy: {{ metrics.subcategories.empathy|float }},
+            adherence: {{ metrics.subcategories.adherence|float }},
+            communication_protocols: {{ metrics.subcategories.communication_protocols|float }},
+            regulations_compliance: {{ metrics.subcategories.regulations_compliance|float }},
+            sensitive_info: {{ metrics.subcategories.sensitive_info|float }},
+            resolution: {{ metrics.subcategories.resolution|float }}
+        };
+    {% endif %}
+    
+    const skillsChart = new Chart(radarCtx, {
+        type: 'radar',
+        data: {
+            labels: [
+                'Communication',
+                'Problem Solving',
+                'Empathy',
+                'Protocol Adherence',
+                'Comm Protocols',
+                'Regulations',
+                'Sensitive Info',
+                'Resolution'
+            ],
+            datasets: [{
+                label: 'Agent Skills',
+                data: [
+                    subcategories.communication,
+                    subcategories.problem_solving,
+                    subcategories.empathy,
+                    subcategories.adherence,
+                    subcategories.communication_protocols,
+                    subcategories.regulations_compliance,
+                    subcategories.sensitive_info,
+                    subcategories.resolution
+                ],
+                fill: true,
+                backgroundColor: 'rgba(67, 97, 238, 0.2)',
+                borderColor: 'rgba(67, 97, 238, 1)',
+                pointBackgroundColor: 'rgba(67, 97, 238, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(67, 97, 238, 1)'
+            }]
+        },
+        options: {
+            elements: {
+                line: {
+                    borderWidth: 3
+                }
+            },
+            scales: {
+                r: {
+                    angleLines: {
+                        display: true
+                    },
+                    suggestedMin: 0,
+                    suggestedMax: 10,
+                    ticks: {
+                        backdropColor: 'rgba(255, 255, 255, 0.75)'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Score: ${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

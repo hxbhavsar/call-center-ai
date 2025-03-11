@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Call Analysis Dashboard{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --success-color: #4cc9f0;
+            --info-color: #4895ef;
+            --warning-color: #f72585;
+            --danger-color: #e63946;
+        }
+        
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            padding-top: 2rem;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        .nav-link {
+            color: #495057;
+            border-radius: 0;
+        }
+        
+        .nav-link:hover {
+            background-color: rgba(67, 97, 238, 0.1);
+        }
+        
+        .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+            border: none;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .metric-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+        
+        .metric-label {
+            font-size: 1rem;
+            color: #6c757d;
+        }
+        
+        .score-pill {
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        
+        .score-high {
+            background-color: rgba(25, 135, 84, 0.2);
+            color: #198754;
+        }
+        
+        .score-medium {
+            background-color: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+        
+        .score-low {
+            background-color: rgba(220, 53, 69, 0.2);
+            color: #dc3545;
+        }
+        
+        .call-item {
+            border-left: 5px solid var(--primary-color);
+        }
+        
+        .call-item:hover {
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+    </style>
+    {% block head_extras %}{% endblock %}
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4>Call Analysis</h4>
+                        <p class="text-muted">Dashboard</p>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                                <i class="bi bi-house-door"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/upload' in request.path %}active{% endif %}" href="/upload">
+                                <i class="bi bi-upload"></i> Upload Call
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#teamCollapse" data-bs-toggle="collapse" role="button" aria-expanded="false">
+                                <i class="bi bi-people"></i> Teams
+                            </a>
+                            <div class="collapse" id="teamCollapse">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="/team/sales">
+                                            <i class="bi bi-dot"></i> Sales
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="/team/support">
+                                            <i class="bi bi-dot"></i> Support
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="/team/billing">
+                                            <i class="bi bi-dot"></i> Billing
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+                        <li class="nav-item mt-4">
+                            <a class="nav-link" href="/download/json">
+                                <i class="bi bi-download"></i> Export (JSON)
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/download/csv">
+                                <i class="bi bi-download"></i> Export (CSV)
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

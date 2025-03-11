@@ -1,0 +1,109 @@
+{% extends "layout.html" %}
+
+{% block title %}Upload Call Recording{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">Upload Call Recording</h4>
+                </div>
+                <div class="card-body">
+                    <form action="/upload" method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="audio_file" class="form-label">Audio File</label>
+                            <input type="file" class="form-control" id="audio_file" name="audio_file" accept="audio/*" required>
+                            <small class="text-muted">Supported formats: MP3, WAV, OGG, FLAC, M4A</small>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="agent_id" class="form-label">Agent ID</label>
+                                <select class="form-select" id="agent_id" name="agent_id">
+                                    <option value="agent001">Agent 001</option>
+                                    <option value="agent002">Agent 002</option>
+                                    <option value="agent003">Agent 003</option>
+                                    <option value="agent004">Agent 004</option>
+                                    <option value="agent005">Agent 005</option>
+                                    <option value="custom">Other (specify)</option>
+                                </select>
+                                <input type="text" class="form-control mt-2 d-none" id="custom_agent_id" placeholder="Enter agent ID">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="team_id" class="form-label">Team</label>
+                                <select class="form-select" id="team_id" name="team_id">
+                                    <option value="sales">Sales</option>
+                                    <option value="support">Support</option>
+                                    <option value="billing">Billing</option>
+                                    <option value="custom">Other (specify)</option>
+                                </select>
+                                <input type="text" class="form-control mt-2 d-none" id="custom_team_id" placeholder="Enter team ID">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Call Information (Optional)</label>
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">Call Date</span>
+                                <input type="date" class="form-control" name="call_date">
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-text">Call ID</span>
+                                <input type="text" class="form-control" name="call_id" placeholder="Enter call reference ID">
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" id="analyzeBtn">
+                                <i class="bi bi-soundwave"></i> Analyze Call
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="window.history.back();">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Toggle custom agent input
+    document.getElementById('agent_id').addEventListener('change', function() {
+        const customAgentInput = document.getElementById('custom_agent_id');
+        if (this.value === 'custom') {
+            customAgentInput.classList.remove('d-none');
+            customAgentInput.setAttribute('name', 'agent_id');
+            this.removeAttribute('name');
+        } else {
+            customAgentInput.classList.add('d-none');
+            customAgentInput.removeAttribute('name');
+            this.setAttribute('name', 'agent_id');
+        }
+    });
+    
+    // Toggle custom team input
+    document.getElementById('team_id').addEventListener('change', function() {
+        const customTeamInput = document.getElementById('custom_team_id');
+        if (this.value === 'custom') {
+            customTeamInput.classList.remove('d-none');
+            customTeamInput.setAttribute('name', 'team_id');
+            this.removeAttribute('name');
+        } else {
+            customTeamInput.classList.add('d-none');
+            customTeamInput.removeAttribute('name');
+            this.setAttribute('name', 'team_id');
+        }
+    });
+    
+    // Form submission loader
+    document.querySelector('form').addEventListener('submit', function() {
+        const button = document.getElementById('analyzeBtn');
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        button.disabled = true;
+    });
+</script>
+{% endblock %}

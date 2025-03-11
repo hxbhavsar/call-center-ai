@@ -1,0 +1,541 @@
+{% extends "layout.html" %}
+
+{% block title %}Call Analysis Results{% endblock %}
+
+{% block head_extras %}
+<style>
+    .result-section {
+        margin-bottom: 30px;
+    }
+    
+    .summary-section {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+    }
+    
+    .recommendation-item {
+        padding: 10px;
+        border-left: 3px solid var(--primary-color);
+        background-color: rgba(67, 97, 238, 0.05);
+        margin-bottom: 5px;
+    }
+    
+    .score-circle {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+    }
+    
+    .score-badge {
+        font-size: 2.5rem;
+        font-weight: bold;
+    }
+    
+    .score-high {
+        background-color: #198754;
+    }
+    
+    .score-medium {
+        background-color: #ffc107;
+    }
+    
+    .score-low {
+        background-color: #dc3545;
+    }
+    
+    .meta-info {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .subcategory-bar {
+        height: 8px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+    }
+    
+    .subcategory-label {
+        font-size: 0.85rem;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    
+    .subcategory-score {
+        font-weight: bold;
+    }
+    
+    .subcategory-section {
+        padding-top: 1rem;
+        margin-top: 1rem;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .radar-chart-container {
+        height: 250px;
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if result.error %}
+<div class="alert alert-danger">
+    <h4 class="alert-heading">Error!</h4>
+    <p>{{ result.error }}</p>
+    <hr>
+    <p class="mb-0">Please try again or contact system administrator.</p>
+    <a href="/upload" class="btn btn-outline-danger mt-3">Try Again</a>
+</div>
+{% else %}
+<!-- Analysis header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>Call Analysis Results</h1>
+        <p class="text-muted">
+            {% if result.filename %}
+                File: {{ result.filename }} |
+            {% endif %}
+            Agent: <a href="/agent/{{ result.agent_id }}">{{ result.agent_id }}</a> |
+            Team: <a href="/team/{{ result.team_id }}">{{ result.team_id }}</a>
+        </p>
+    </div>
+    <div>
+        <a href="/" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+        <a href="/upload" class="btn btn-primary">
+            <i class="bi bi-plus"></i> New Analysis
+        </a>
+    </div>
+</div>
+
+<!-- Score summary -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Agent Performance</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        {% set agent_score = result.agent_evaluation.score|float %}
+                        <div class="score-circle 
+                            {% if agent_score >= 8 %}score-high
+                            {% elif agent_score >= 6 %}score-medium
+                            {% else %}score-low{% endif %}">
+                            {{ agent_score }}
+                        </div>
+                        <div class="mt-3">
+                            {% if agent_score >= 8 %}
+                                <span class="badge bg-success">Excellent</span>
+                            {% elif agent_score >= 6 %}
+                                <span class="badge bg-warning text-dark">Good</span>
+                            {% else %}
+                                <span class="badge bg-danger">Needs Improvement</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="subcategory-section">
+                            <h6 class="mb-3">Performance Breakdown</h6>
+                            
+                            {% if result.agent_evaluation.subcategories %}
+                                <!-- Communication -->
+                                {% set comm_score = result.agent_evaluation.subcategories.communication|float %}
+                                <div class="subcategory-label">
+                                    <span>Communication</span>
+                                    <span class="subcategory-score">{{ comm_score }}</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar subcategory-bar 
+                                        {% if comm_score >= 8 %}bg-success
+                                        {% elif comm_score >= 6 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        role="progressbar" style="width: {{ comm_score*10 }}%" 
+                                        aria-valuenow="{{ comm_score }}" aria-valuemin="0" aria-valuemax="10">
+                                    </div>
+                                </div>
+                                
+                                <!-- Problem Solving -->
+                                {% set prob_score = result.agent_evaluation.subcategories.problem_solving|float %}
+                                <div class="subcategory-label">
+                                    <span>Problem Solving</span>
+                                    <span class="subcategory-score">{{ prob_score }}</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar subcategory-bar 
+                                        {% if prob_score >= 8 %}bg-success
+                                        {% elif prob_score >= 6 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        role="progressbar" style="width: {{ prob_score*10 }}%" 
+                                        aria-valuenow="{{ prob_score }}" aria-valuemin="0" aria-valuemax="10">
+                                    </div>
+                                </div>
+                                
+                                <!-- Empathy -->
+                                {% set emp_score = result.agent_evaluation.subcategories.empathy|float %}
+                                <div class="subcategory-label">
+                                    <span>Empathy</span>
+                                    <span class="subcategory-score">{{ emp_score }}</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar subcategory-bar 
+                                        {% if emp_score >= 8 %}bg-success
+                                        {% elif emp_score >= 6 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        role="progressbar" style="width: {{ emp_score*10 }}%" 
+                                        aria-valuenow="{{ emp_score }}" aria-valuemin="0" aria-valuemax="10">
+                                    </div>
+                                </div>
+                                
+                                <!-- Protocol Adherence -->
+                                {% set adh_score = result.agent_evaluation.subcategories.adherence|float %}
+                                <div class="subcategory-label">
+                                    <span>Protocol Adherence</span>
+                                    <span class="subcategory-score">{{ adh_score }}</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar subcategory-bar 
+                                        {% if adh_score >= 8 %}bg-success
+                                        {% elif adh_score >= 6 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        role="progressbar" style="width: {{ adh_score*10 }}%" 
+                                        aria-valuenow="{{ adh_score }}" aria-valuemin="0" aria-valuemax="10">
+                                    </div>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No subcategory data available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Compliance Score</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        {% set audit_score = result.audit_and_compliance.score|float %}
+                        <div class="score-circle 
+                            {% if audit_score >= 8 %}score-high
+                            {% elif audit_score >= 6 %}score-medium
+                            {% else %}score-low{% endif %}">
+                            {{ audit_score }}
+                        </div>
+                        <div class="mt-3">
+                            {% if audit_score >= 8 %}
+                                <span class="badge bg-success">Compliant</span>
+                            {% elif audit_score >= 6 %}
+                                <span class="badge bg-warning text-dark">Minor Issues</span>
+                            {% else %}
+                                <span class="badge bg-danger">Non-Compliant</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="subcategory-section">
+                            <h6 class="mb-3">Compliance Breakdown</h6>
+                            
+                            {% if result.audit_and_compliance.subcategories %}
+                                <!-- Communication Protocols -->
+                                {% set proto_score = result.audit_and_compliance.subcategories.communication_protocols|float %}
+                                <div class="subcategory-label">
+                                    <span>Communication Protocols</span>
+                                    <span class="subcategory-score">{{ proto_score }}</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar subcategory-bar 
+                                        {% if proto_score >= 8 %}bg-success
+                                        {% elif proto_score >= 6 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        role="progressbar" style="width: {{ proto_score*10 }}%" 
+                                        aria-valuenow="{{ proto_score }}" aria-valuemin="0" aria-valuemax="10">
+                                    </div>
+                                </div>
+                                
+                                <!-- Regulations Compliance -->
+                                {% set reg_score = result.audit_and_compliance.subcategories.regulations_compliance|float %}
+                                <div class="subcategory-label">
+                                    <span>Regulations Compliance</span>
+                                    <span class="subcategory-score">{{ reg_score }}</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar subcategory-bar 
+                                        {% if reg_score >= 8 %}bg-success
+                                        {% elif reg_score >= 6 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        role="progressbar" style="width: {{ reg_score*10 }}%" 
+                                        aria-valuenow="{{ reg_score }}" aria-valuemin="0" aria-valuemax="10">
+                                    </div>
+                                </div>
+                                
+                                <!-- Sensitive Information -->
+                                {% set sens_score = result.audit_and_compliance.subcategories.sensitive_info|float %}
+                                <div class="subcategory-label">
+                                    <span>Sensitive Information</span>
+                                    <span class="subcategory-score">{{ sens_score }}</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar subcategory-bar 
+                                        {% if sens_score >= 8 %}bg-success
+                                        {% elif sens_score >= 6 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        role="progressbar" style="width: {{ sens_score*10 }}%" 
+                                        aria-valuenow="{{ sens_score }}" aria-valuemin="0" aria-valuemax="10">
+                                    </div>
+                                </div>
+                                
+                                <!-- Resolution Effectiveness -->
+                                {% set res_score = result.audit_and_compliance.subcategories.resolution|float %}
+                                <div class="subcategory-label">
+                                    <span>Resolution Effectiveness</span>
+                                    <span class="subcategory-score">{{ res_score }}</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar subcategory-bar 
+                                        {% if res_score >= 8 %}bg-success
+                                        {% elif res_score >= 6 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        role="progressbar" style="width: {{ res_score*10 }}%" 
+                                        aria-valuenow="{{ res_score }}" aria-valuemin="0" aria-valuemax="10">
+                                    </div>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No subcategory data available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Radar Chart -->
+<!--<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Performance Radar</h5>
+            </div>
+            <div class="card-body">
+                <div class="radar-chart-container">
+                    <canvas id="performanceRadarChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+-->
+<!-- Call summary -->
+<div class="card result-section">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Call Summary</h5>
+    </div>
+    <div class="card-body">
+        {% if result.call_summary %}
+            <p>{{ result.call_summary }}</p>
+        {% else %}
+            <p class="text-muted">No call summary available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Agent evaluation -->
+<div class="card result-section">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Agent Evaluation</h5>
+    </div>
+    <div class="card-body">
+        {% if result.agent_evaluation and result.agent_evaluation.justification %}
+            <p>{{ result.agent_evaluation.justification }}</p>
+        {% else %}
+            <p class="text-muted">No agent evaluation available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Audit and compliance -->
+<div class="card result-section">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Audit & Compliance Details</h5>
+    </div>
+    <div class="card-body">
+        {% if result.audit_and_compliance and result.audit_and_compliance.details %}
+            <p>{{ result.audit_and_compliance.details }}</p>
+        {% else %}
+            <p class="text-muted">No audit details available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recommendations -->
+<div class="card result-section">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Recommendations</h5>
+    </div>
+    <div class="card-body">
+        {% if result.recommendations %}
+            <div class="recommendation-item">
+                {{ result.recommendations }}
+            </div>
+        {% else %}
+            <p class="text-muted">No recommendations available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Metadata information -->
+<div class="card result-section">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Analysis Information</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-sm">
+            <tbody>
+                <tr>
+                    <th style="width: 150px;">Analysis ID:</th>
+                    <td>{{ result.timestamp }}</td>
+                </tr>
+                <tr>
+                    <th>Date & Time:</th>
+                    <td>{{ result.timestamp }}</td>
+                </tr>
+                <tr>
+                    <th>Agent:</th>
+                    <td>{{ result.agent_id }}</td>
+                </tr>
+                <tr>
+                    <th>Team:</th>
+                    <td>{{ result.team_id }}</td>
+                </tr>
+                {% if result.filename %}
+                <tr>
+                    <th>Filename:</th>
+                    <td>{{ result.filename }}</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if not result.error %}
+    // Create the radar chart for performance metrics
+    const radarCtx = document.getElementById('performanceRadarChart').getContext('2d');
+    
+    // Set default values for subcategories if they don't exist
+    let agentSubcategories = {
+        communication: 0,
+        problem_solving: 0,
+        empathy: 0,
+        adherence: 0
+    };
+    
+    let auditSubcategories = {
+        communication_protocols: 0,
+        regulations_compliance: 0,
+        sensitive_info: 0,
+        resolution: 0
+    };
+    
+    // Use actual values if they exist
+    {% if result.agent_evaluation and result.agent_evaluation.subcategories %}
+        agentSubcategories = {
+            communication: {{ result.agent_evaluation.subcategories.communication|float }},
+            problem_solving: {{ result.agent_evaluation.subcategories.problem_solving|float }},
+            empathy: {{ result.agent_evaluation.subcategories.empathy|float }},
+            adherence: {{ result.agent_evaluation.subcategories.adherence|float }}
+        };
+    {% endif %}
+    
+    {% if result.audit_and_compliance and result.audit_and_compliance.subcategories %}
+        auditSubcategories = {
+            communication_protocols: {{ result.audit_and_compliance.subcategories.communication_protocols|float }},
+            regulations_compliance: {{ result.audit_and_compliance.subcategories.regulations_compliance|float }},
+            sensitive_info: {{ result.audit_and_compliance.subcategories.sensitive_info|float }},
+            resolution: {{ result.audit_and_compliance.subcategories.resolution|float }}
+        };
+    {% endif %}
+    
+    // Create the radar chart
+    const radarChart = new Chart(radarCtx, {
+        type: 'radar',
+        data: {
+            labels: [
+                'Communication',
+                'Problem Solving',
+                'Empathy',
+                'Protocol Adherence',
+                'Comm Protocols',
+                'Regulations',
+                'Sensitive Info',
+                'Resolution'
+            ],
+            datasets: [{
+                label: 'Performance Metrics',
+                data: [
+                    agentSubcategories.communication,
+                    agentSubcategories.problem_solving,
+                    agentSubcategories.empathy,
+                    agentSubcategories.adherence,
+                    auditSubcategories.communication_protocols,
+                    auditSubcategories.regulations_compliance,
+                    auditSubcategories.sensitive_info,
+                    auditSubcategories.resolution
+                ],
+                fill: true,
+                backgroundColor: 'rgba(67, 97, 238, 0.2)',
+                borderColor: 'rgba(67, 97, 238, 1)',
+                pointBackgroundColor: 'rgba(67, 97, 238, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(67, 97, 238, 1)'
+            }]
+        },
+        options: {
+            scales: {
+                r: {
+                    angleLines: {
+                        display: true
+                    },
+                    suggestedMin: 0,
+                    suggestedMax: 10
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Score: ${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+{% endif %}
+</script>
+{% endblock %}
